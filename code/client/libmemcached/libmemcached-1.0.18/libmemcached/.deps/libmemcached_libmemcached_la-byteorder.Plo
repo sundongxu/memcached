@@ -1,0 +1,47 @@
+libmemcached/libmemcached_libmemcached_la-byteorder.lo: \
+ libmemcached/byteorder.cc /usr/include/stdc-predef.h mem_config.h \
+ /usr/include/c++/6/cinttypes /usr/include/c++/6/cstdint \
+ /usr/include/x86_64-linux-gnu/c++/6/bits/c++config.h \
+ /usr/include/x86_64-linux-gnu/c++/6/bits/os_defines.h \
+ /usr/include/features.h /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/include/x86_64-linux-gnu/c++/6/bits/cpu_defines.h \
+ /usr/lib/gcc/x86_64-linux-gnu/6/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h /usr/include/inttypes.h \
+ libmemcached/byteorder.h
+
+/usr/include/stdc-predef.h:
+
+mem_config.h:
+
+/usr/include/c++/6/cinttypes:
+
+/usr/include/c++/6/cstdint:
+
+/usr/include/x86_64-linux-gnu/c++/6/bits/c++config.h:
+
+/usr/include/x86_64-linux-gnu/c++/6/bits/os_defines.h:
+
+/usr/include/features.h:
+
+/usr/include/x86_64-linux-gnu/sys/cdefs.h:
+
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
+
+/usr/include/x86_64-linux-gnu/c++/6/bits/cpu_defines.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/6/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/x86_64-linux-gnu/bits/wchar.h:
+
+/usr/include/inttypes.h:
+
+libmemcached/byteorder.h:
