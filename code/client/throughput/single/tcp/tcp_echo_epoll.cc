@@ -70,9 +70,9 @@ class RecvCallback : public Callback
                 sum += processed_count[count];
                 long delta_t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count() - t;
                 t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
-                printf("From receiver: %d requests processed, time: %ld us, throughput: %f Req/s\n",
-                       processed_count[count], delta_t, processed_count[count] * 1000000.0 / delta_t);
-                printf("current sockfd:%d\n", sockfd);
+                // printf("From receiver: %d requests processed, time: %ld us, throughput: %f Req/s\n",
+                    //    processed_count[count], delta_t, processed_count[count] * 1000000.0 / delta_t);
+                // printf("current sockfd:%d\n", sockfd);
                 count++;
                 if (count >= TIMES - LATENCY_COUNT)
                 {
@@ -90,7 +90,7 @@ class RecvCallback : public Callback
                 memset(cmd, 0, 256);
                 memset(key, 0, 16);
                 memset(value, 0, 32);
-                int cmd_len = 0, count = 0;
+                int cmd_len = 0;
 
                 // 不停发请求
                 sprintf(key, "%d", count + 1000000);
