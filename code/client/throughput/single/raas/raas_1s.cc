@@ -5,11 +5,13 @@
 #include <ratio>
 #include "../../../Event.h"
 #include "../../../RaaSContext.h"
+#include "../../../IPC.h"
 
 using namespace std;
 using namespace std::chrono;
 
 #define THREAD_NUM 1
+#define THREAD_CORE_NUM_START 10
 #define TIME 5
 
 char reply[1024 * 30]; // 30KB
@@ -30,13 +32,13 @@ class RecvCallback : public Callback
     RaaSContext *rct;
     int thread_index;
     int *ops;
-    char reply[1024 * 30];
+    char reply[1024 * 64];
 
   public:
     RecvCallback(RaaSContext *rct, int index, int *tp) : rct(rct), thread_index(index), ops(tp) {}
     void callback(int fd)
     {
-        memset(reply, 0, 1024 * 30);
+        memset(reply, 0, 1024 * 64);
         int len = rct->recv(fd, reply, sizeof(reply) - 1);
         reply[len] = 0;
         int num = 0;
@@ -47,11 +49,23 @@ class RecvCallback : public Callback
 
 void recv_response(EventCenter *ec)
 {
+    // 绑定核
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET((THREAD_CORE_NUM_START + THREAD_NUM) % 24, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+
     ec->process_events(); // epoll实现，遍历每个有可读事件的fd，触发其回调
 }
 
 void send_request(RaaSContext *rct, int thread_index, int fd)
 {
+    // 绑定核
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET((thread_index + THREAD_CORE_NUM_START) % 24, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+
     char cmd[256], key[16], value[32];
     memset(cmd, 0, 256);
     memset(key, 0, 16);
@@ -91,7 +105,11 @@ int main()
     is_set = strcmp(req_type, "set") == 0 ? true : false;
 
     // RaaS建立连接
-    RaaSContext rct;
+    string device("mlx5_0");
+    string host("114.212.87.51:24689");
+    RaaSContext rct(device, host, 1, 24689);
+    rct.modify_attr(RAAS_CONN_BUF_NUM, 4096);
+    rct.start();
     EventCenter ec(&rct);
 
     thread timer = thread(timing, &ec);
@@ -101,7 +119,8 @@ int main()
 
     for (int i = 0; i < THREAD_NUM; i++)
     {
-        int fd = rct.connect("114.212.83.29:18888");
+        Target t("114.212.83.29:18888");
+        int fd = rct.connect(&t);
         printf("connect fd:%d\n", fd);
         ops[i] = 0;
         ec.add_event(fd, new RecvCallback(&rct, i, ops)); // 注册回调到事件中心，一个事件中心可以注册多个fd事件

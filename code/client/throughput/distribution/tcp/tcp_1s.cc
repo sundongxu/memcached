@@ -19,11 +19,11 @@ using namespace std::chrono;
 
 #define SERVER_NUM 2 // 服务器数量
 #define THREAD_NUM 1 // 发送线程数
-#define TIME 5       // 计时长度
+#define TIME 1       // 计时长度
 
 string servers[4] =
     {"114.212.87.51",  // server013
-     "114.212.83.28",  // master
+     "114.212.83.29",  // master
      "114.212.85.112", // server08
      "114.212.83.26"}; // server012
 
@@ -58,6 +58,9 @@ void recv_response(int *sockfds, int thread_index, int *ops)
         for (int i = 0; i < SERVER_NUM; i++)
         {
             len = recv_from_server(sockfds[i], reply);
+            if (len == -1)
+                continue;
+            printf("From server %d, 本次接收字节数:%d, 内容:%s\n", i, len, reply);
             reply[len] = 0;
             // response大小：get->30B, set->8B
             num = is_set ? len / 8 : len / 30;
@@ -65,7 +68,7 @@ void recv_response(int *sockfds, int thread_index, int *ops)
             memset(reply, 0, 1024 * 30);
         }
     }
-    printf("From worker:%d, %d requests processed\n", thread_index, ops[thread_index]);
+    printf("From receiver:%d, %d requests processed\n", thread_index, ops[thread_index]);
 }
 
 void send_to_server(int sockfd, char *cmd)
@@ -92,6 +95,7 @@ void send_request(int thread_index, int *ops)
     {
         sockfds[i] = socket(AF_INET, SOCK_STREAM, 0);
         address.sin_addr.s_addr = inet_addr(servers[i].c_str());
+        printf("servers[%d]:%s\n", i, servers[i].c_str());
         len = sizeof(address);
         res = connect(sockfds[i], (struct sockaddr *)&address, len);
         if (res == -1)

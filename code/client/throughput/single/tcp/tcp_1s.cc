@@ -18,7 +18,7 @@ using namespace std;
 using namespace std::chrono;
 
 #define THREAD_NUM 1
-#define TIME 5
+#define TIME 1
 
 bool is_set = false, timeout = false;
 
@@ -45,6 +45,9 @@ void recv_response(int sockfd, int thread_index, int *ops)
         // response大小：get->30B, set->8B
         memset(reply, 0, 1024 * 30);
         len = recv(sockfd, reply, sizeof(reply) - 1, 0);
+        if(len == -1)  // recv返回-1表示本次没有接收到数据，应该再次尝试（返回0表示连接已断开）
+            continue;
+        // printf("本次接收到的字节数:%d\n", len);
         reply[len] = 0;
         num = is_set ? len / 8 : len / 30;
         ops[thread_index] += num;
