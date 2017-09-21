@@ -24,7 +24,17 @@ using namespace std::chrono;
 
 typedef duration<long, std::ratio<1, 1000000>> micro_seconds_type;
 
-bool is_set = false;
+bool is_set = false, go = false;
+
+void start()
+{
+    go = true;
+}
+
+void stop()
+{
+    go = false;
+}
 
 class RecvCallback : public Callback
 {
@@ -33,6 +43,7 @@ class RecvCallback : public Callback
     int sum;                           // 收到的reply总和
     long t;                            // 当前时间
     long start_t;                      // 开始时间
+    bool is_start;                     // 开始计时
     bool timeout;                      // 是否超时
 
   public:
@@ -45,13 +56,18 @@ class RecvCallback : public Callback
         {
             processed_count[i] = 0;
         }
-        start_t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
-        t = start_t;
+        is_start = false;
         timeout = false;
     }
 
     void callback(int sockfd)
     {
+        if (!is_start)
+        {
+            is_start = true;
+            start_t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
+            t = start_t;
+        }
         if (count < TIMES)
         {
             int len = recv(sockfd, reply, sizeof(reply) - 1, 0);
@@ -82,6 +98,7 @@ class RecvCallback : public Callback
                 printf("total time:%ld\n", total_t);
                 printf("From receiver: %d requests processed totally, throughput: %f  Req/s\n",
                        sum, sum * 1000000.0 / total_t);
+                stop();
             }
         }
     }
@@ -100,6 +117,8 @@ void recv_response(EventCenter *ec)
 
 void send_request(int sockfd, int thread_index)
 {
+    while (!go)
+        ;
     // 绑定核
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -113,7 +132,7 @@ void send_request(int sockfd, int thread_index)
     memset(value, 0, 32);
     int cmd_len = 0, count = 0;
 
-    while (1)
+    while (go)
     {
         // 不停发请求
         count++;
@@ -170,6 +189,8 @@ int main()
         printf("connect fd:%d\n", sockfds[i]);
     }
 
+    thread receiver = thread(recv_response, ec);
+
     // 启动线程，开始发送请求并接收响应
     thread workers[THREAD_NUM];
     RecvCallback *cb = new RecvCallback();
@@ -180,14 +201,14 @@ int main()
         workers[i] = thread(send_request, sockfds[i], i); // 为每个worker分派一个连接
     }
 
-    thread receiver = thread(recv_response, ec);
+    start(); // 同时开始执行发送线程
 
+    receiver.join();
     // 等待worker和receiver线程执行完毕后才会执行join
     for (int i = 0; i < THREAD_NUM; i++)
     {
         workers[i].join();
     }
-    receiver.join();
 
     printf("client finished!\n");
 

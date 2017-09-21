@@ -17,7 +17,17 @@ using namespace std::chrono;
 
 typedef duration<long, std::ratio<1, 1000000>> micro_seconds_type;
 
-bool is_set = false;
+bool is_set = false, go = false;
+
+void start()
+{
+    go = true;
+}
+
+void stop()
+{
+    go = false;
+}
 
 // 本身就是一个worker线程在处理
 class RecvCallback : public Callback
@@ -28,6 +38,7 @@ class RecvCallback : public Callback
     int sum;                           // 收到的reply总和
     long t;                            // 当前时间
     long start_t;                      // 开始时间
+    bool is_start;                     // 开始计时
     bool timeout;                      // 是否超次数
 
   public:
@@ -40,13 +51,18 @@ class RecvCallback : public Callback
         {
             processed_count[i] = 0;
         }
-        start_t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
-        t = start_t;
+        is_start = false;
         timeout = false;
     }
 
     void callback(int connfd)
     {
+        if (!is_start)
+        {
+            is_start = true;
+            start_t = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
+            t = start_t;
+        }
         if (count < TIMES)
         {
             int len = rct->recv(connfd, reply, sizeof(reply) - 1);
@@ -78,6 +94,7 @@ class RecvCallback : public Callback
                 printf("total time:%ld\n", total_t);
                 printf("From receiver: %d requests processed totally, throughput: %f  Req/s\n",
                        sum, sum * 1000000.0 / total_t);
+                stop(); // 停止发送
             }
         }
     }
@@ -97,6 +114,8 @@ void recv_response(EventCenter *ec)
 void send_request(RaaSContext *rct, int thread_index, int connfd)
 {
     // 绑定核
+    while (!go)
+        ;
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET((SENDER_CORE_START + thread_index) % 24, &cpuset); // worker从CPU10开始绑定
@@ -108,7 +127,7 @@ void send_request(RaaSContext *rct, int thread_index, int connfd)
     memset(value, 0, 32);
     int cmd_len = 0, count = 0;
 
-    while (1)
+    while (go)
     {
         count++;
         sprintf(key, "%d", count + 1000000 * (thread_index + 1));
@@ -126,6 +145,7 @@ void send_request(RaaSContext *rct, int thread_index, int connfd)
         memset(key, 0, 16);
         memset(value, 0, 32);
     }
+
     //printf("From worker:%d, %d requests sent\n", thread_index, count);
 }
 
@@ -158,10 +178,11 @@ int main()
         Target t("114.212.83.29:18888");
         connfds[i] = rct.connect(&t);
         printf("connect fd:%d\n", connfds[i]);
-        long start = time_point_cast<micro_seconds_type>(system_clock::now()).time_since_epoch().count();
         ec.add_event(connfds[i], &cb); // 注册回调到事件中心
         workers[i] = thread(send_request, &rct, i, connfds[i]);
     }
+
+    start(); // 同时开始执行发送线程
 
     receiver.join();
     for (int i = 0; i < THREAD_NUM; i++)
